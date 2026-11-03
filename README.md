@@ -1,6 +1,6 @@
 # Microgrid Source Monitor (ESP32 simulation)
 
-A low-voltage prototype modelling the home backup-power setup I grew up with in Myanmar,
+A low-voltage prototype modelling the home backup-power setup
 where grid, battery inverter and generator switch automatically during blackouts.
 
 **Priority logic:** GRID > GENERATOR > BATTERY
@@ -18,3 +18,7 @@ ESP32 (simulated in Wokwi) -> MQTT (HiveMQ public broker) -> browser dashboard
 - Simulated hardware; public broker with no authentication
 - No stored history (could add a database, or AWS IoT Core with certificates)
 - Next: real ESP32 with voltage sensing, debouncing, current measurement
+
+## How to run
+open the Wokwi link, press Play, open the dashboard, and flip a switch. Mention that the dashboard shows live data only while the simulation is running, and that the MQTT topic in both files must match.
+
