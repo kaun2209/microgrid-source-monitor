@@ -1,6 +1,6 @@
 // Low-voltage model of a home power-source priority system
 // Priority: GRID > GENERATOR > BATTERY
-// Publishes every source change over MQTT
+// Publishes source changes + periodic heartbeat over MQTT (retained)
 
 #include <WiFi.h>
 #include <PubSubClient.h>
@@ -19,13 +19,21 @@ const char* WIFI_PASS = "";
 // ---- MQTT (public test broker: anyone can read it, send nothing private) ----
 const char* MQTT_HOST = "broker.hivemq.com";
 const int   MQTT_PORT = 1883;
-// CHANGE "7431" to your own random number so your topic is unique
+// Must match TOPIC in dashboard.html exactly
 const char* TOPIC = "kkm-microgrid-demo-7431/status";
 
 WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
 
+// ---- State ----
 String lastSource = "";
+String candidate = "";
+String stableSource = "";
+unsigned long candidateSince = 0;
+unsigned long lastPublish = 0;
+
+const unsigned long HEARTBEAT_MS = 15000;  // republish state every 15 s
+const unsigned long DEBOUNCE_MS  = 200;    // ignore switch bounce shorter than this
 
 String getActiveSource() {
   bool gridOn = (digitalRead(GRID_PIN) == LOW);
@@ -61,7 +69,7 @@ void connectMQTT() {
 
 void publishSource(const String& source) {
   String payload = "{\"source\":\"" + source + "\",\"uptime_s\":" + String(millis() / 1000) + "}";
-  mqtt.publish(TOPIC, payload.c_str());
+  mqtt.publish(TOPIC, payload.c_str(), true);   // true = retained message
   Serial.println("Published: " + payload);
 }
 
@@ -80,20 +88,32 @@ void setup() {
 }
 
 void loop() {
-  if (!mqtt.connected()) connectMQTT();
+  if (!mqtt.connected()) {
+    connectMQTT();
+    lastSource = "";            // forces a republish after reconnect
+  }
   mqtt.loop();
 
-  String source = getActiveSource();
-
-  digitalWrite(LED_GRID, source == "GRID");
-  digitalWrite(LED_GEN,  source == "GENERATOR");
-  digitalWrite(LED_BATT, source == "BATTERY");
-
-  if (source != lastSource) {
-    Serial.println("Active source: " + source);
-    publishSource(source);
-    lastSource = source;
+  // Debounce: accept a new reading only after it stays stable
+  String reading = getActiveSource();
+  if (reading != candidate) {
+    candidate = reading;
+    candidateSince = millis();
   }
+  if (millis() - candidateSince >= DEBOUNCE_MS) stableSource = candidate;
+  if (stableSource == "") { delay(10); return; }
 
-  delay(50);
+  digitalWrite(LED_GRID, stableSource == "GRID");
+  digitalWrite(LED_GEN,  stableSource == "GENERATOR");
+  digitalWrite(LED_BATT, stableSource == "BATTERY");
+
+  bool changed   = (stableSource != lastSource);
+  bool heartbeat = (millis() - lastPublish >= HEARTBEAT_MS);
+  if (changed || heartbeat) {
+    if (changed) Serial.println("Active source: " + stableSource);
+    publishSource(stableSource);
+    lastSource = stableSource;
+    lastPublish = millis();
+  }
+  delay(20);
 }
