@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "author": "Kaung Kyaw Moe",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-slide-switch", "id": "sw_grid", "top": -90, "left": -170, "attrs": {} },
+    { "type": "wokwi-slide-switch", "id": "sw_gen", "top": -20, "left": -170, "attrs": {} },
+    { "type": "wokwi-led", "id": "led_grid", "top": -110, "left": 230, "attrs": { "color": "green" } },
+    { "type": "wokwi-led", "id": "led_gen", "top": -50, "left": 230, "attrs": { "color": "yellow" } },
+    { "type": "wokwi-led", "id": "led_batt", "top": 10, "left": 230, "attrs": { "color": "red" } },
+    { "type": "wokwi-resistor", "id": "r1", "top": -60, "left": 150, "attrs": { "value": "220" } },
+    { "type": "wokwi-resistor", "id": "r2", "top": 0, "left": 150, "attrs": { "value": "220" } },
+    { "type": "wokwi-resistor", "id": "r3", "top": 60, "left": 150, "attrs": { "value": "220" } }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+
+    [ "sw_grid:2", "esp:32", "green", [] ],
+    [ "sw_grid:1", "esp:GND.1", "black", [] ],
+    [ "sw_gen:2", "esp:33", "green", [] ],
+    [ "sw_gen:1", "esp:GND.1", "black", [] ],
+
+    [ "esp:25", "r1:1", "green", [] ],
+    [ "r1:2", "led_grid:A", "green", [] ],
+    [ "led_grid:C", "esp:GND.1", "black", [] ],
+
+    [ "esp:26", "r2:1", "yellow", [] ],
+    [ "r2:2", "led_gen:A", "yellow", [] ],
+    [ "led_gen:C", "esp:GND.1", "black", [] ],
+
+    [ "esp:27", "r3:1", "red", [] ],
+    [ "r3:2", "led_batt:A", "red", [] ],
+    [ "led_batt:C", "esp:GND.1", "black", [] ]
+  ],
+  "dependencies": {}
+}
