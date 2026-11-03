@@ -57,7 +57,7 @@
   client.on("message", (topic, payload) => {
     let data;
     try { data = JSON.parse(payload.toString()); } catch (e) { return; }
-    if (!COLORS[data.source]) return;
+    if (data.source === previous) return;   // heartbeat: state unchanged, don't log
 
     const now = new Date().toLocaleTimeString();
     const card = document.getElementById("card");
