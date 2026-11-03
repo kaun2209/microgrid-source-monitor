@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Microgrid Monitor</title>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<style>
+  body { font-family: -apple-system, Arial, sans-serif; max-width: 640px; margin: 24px auto; padding: 0 16px; background: #f4f4f4; color: #222; }
+  h1 { font-size: 1.3rem; }
+  #status { font-size: 0.85rem; color: #666; margin-bottom: 12px; }
+  #alert { display: none; background: #c62828; color: #fff; padding: 12px 16px; border-radius: 8px; margin-bottom: 12px; font-weight: 600; }
+  #card { border-radius: 12px; padding: 32px 16px; text-align: center; color: #fff; background: #888; }
+  #source { font-size: 2.4rem; font-weight: 700; }
+  #since { margin-top: 8px; opacity: 0.9; }
+  h2 { font-size: 1.05rem; margin-top: 28px; }
+  table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid #eee; font-size: 0.9rem; }
+  th { background: #eaeaea; }
+</style>
+</head>
+<body>
+  <h1>Low-voltage microgrid monitor (simulated ESP32)</h1>
+  <div id="status">Connecting to broker...</div>
+  <div id="alert"></div>
+  <div id="card">
+    <div id="source">WAITING</div>
+    <div id="since">Flip a switch in the simulator</div>
+  </div>
+  <h2>Switchover log</h2>
+  <table>
+    <thead><tr><th>Time</th><th>Source</th><th>Event</th></tr></thead>
+    <tbody id="log"></tbody>
+  </table>
+
+<script>
+  // Must match the topic in your ESP32 sketch exactly
+  const TOPIC = "kkm-microgrid-demo-7431/status";
+  const BROKER = "wss://mqtt-dashboard.com:8884/mqtt";
+
+  const COLORS = { GRID: "#2e7d32", GENERATOR: "#f9a825", BATTERY: "#c62828" };
+  let previous = null;
+
+  const client = mqtt.connect(BROKER);
+
+  client.on("connect", () => {
+    document.getElementById("status").textContent = "Connected. Listening on " + TOPIC;
+    client.subscribe(TOPIC);
+  });
+  client.on("error", e => {
+    document.getElementById("status").textContent = "Connection error: " + e.message;
+  });
+  client.on("close", () => {
+    document.getElementById("status").textContent = "Disconnected. Reconnecting...";
+  });
+
+  client.on("message", (topic, payload) => {
+    let data;
+    try { data = JSON.parse(payload.toString()); } catch (e) { return; }
+    if (!COLORS[data.source]) return;
+
+    const now = new Date().toLocaleTimeString();
+    const card = document.getElementById("card");
+    card.style.background = COLORS[data.source];
+    document.getElementById("source").textContent = data.source;
+    document.getElementById("since").textContent = "Since " + now + " (device uptime " + data.uptime_s + " s)";
+
+    let event = "Source changed";
+    const alertBox = document.getElementById("alert");
+    if (data.source === "BATTERY") {
+      event = "Grid and generator lost, running on battery";
+      alertBox.textContent = "ALERT: running on battery. Grid and generator are both unavailable.";
+      alertBox.style.display = "block";
+    } else if (data.source === "GENERATOR") {
+      event = "Grid lost, running on generator";
+      alertBox.textContent = "ALERT: grid lost. Running on generator.";
+      alertBox.style.display = "block";
+    } else {
+      event = previous ? "Grid restored" : "Grid available";
+      alertBox.style.display = "none";
+    }
+
+    const row = document.createElement("tr");
+    [now, data.source, event].forEach(text => {
+      const td = document.createElement("td");
+      td.textContent = text;
+      row.appendChild(td);
+    });
+    document.getElementById("log").prepend(row);
+    previous = data.source;
+  });
+</script>
+</body>
+</html>
